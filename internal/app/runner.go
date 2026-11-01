@@ -11,7 +11,7 @@ type Event struct {
 	Type       string   `json:"type"` // progress / log / done / error
 	Stage      string   `json:"stage,omitempty"`
 	Message    string   `json:"message,omitempty"`
-	Current    int      `json:"current,omitempty"`
+	Current    int      `json:"current"`
 	Total      int      `json:"total,omitempty"`
 	Matched    int      `json:"matched"`
 	MatchTotal int      `json:"match_total,omitempty"`

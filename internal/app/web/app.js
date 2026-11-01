@@ -8,6 +8,7 @@ const state = {
   sortKey: '',
   sortDir: 'desc',
   running: false,
+  stopping: false,
   hasToken: false,
   system: {},      // 运行环境信息（是否支持 crontab 等）
   pool: 1000,      // 候选 IP 数量，0 表示不限
@@ -175,16 +176,94 @@ function renderTable() {
     : `结果 ${rows.length}/${state.results.length}`;
 }
 
+function csvCell(value) {
+  const text = String(value == null ? '' : value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadFilteredCSV() {
+  const rows = visibleRows();
+  if (!rows.length) {
+    toast('当前筛选没有可下载的数据', 'err');
+    return;
+  }
+  const data = [
+    ['IP 地址', '已发送', '已接收', '丢包率', '平均延迟', '下载速度(MB/s)', '地区码', '端口'],
+    ...rows.map(r => [
+      r.ip, r.sent, r.received, Number(r.loss_rate).toFixed(2),
+      Number(r.delay).toFixed(2), Number(r.speed).toFixed(2), r.colo || 'N/A', r.port,
+    ]),
+  ].map(row => row.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob(['\ufeff', data], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'result-filtered.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function applyTheme(theme) {
+  const selected = theme === 'light' ? 'light' : 'dark';
+  document.body.dataset.theme = selected;
+  const button = $('#btnTheme');
+  button.textContent = selected === 'dark' ? '浅色' : '深色';
+  button.title = selected === 'dark' ? '切换浅色主题' : '切换深色主题';
+  button.setAttribute('aria-label', button.title);
+}
+
+async function toggleTheme() {
+  const next = document.body.dataset.theme === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  try {
+    await api('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: next }),
+    });
+  } catch (e) {
+    applyTheme(next === 'light' ? 'dark' : 'light');
+    toast('主题保存失败: ' + e.message, 'err');
+  }
+}
+
 // ── 运行状态 ──────────────────────────────────────
 function setRunning(on, keepProgress) {
   state.running = on;
+  if (!on) state.stopping = false;
   $('#btnStart').classList.toggle('hidden', on);
   $('#btnStop').classList.toggle('hidden', !on);
+  $('#actionProgress').classList.toggle('hidden', !state.stopping);
+  $('#actionProgress').setAttribute('aria-hidden', String(!state.stopping));
+  if (!state.stopping) {
+    $('#btnStop').disabled = false;
+    $('#btnStop').innerHTML = '<svg viewBox="0 0 24 24" class="ico"><rect x="6" y="6" width="12" height="12"/></svg>停止';
+  }
   $('#statusDot').className = 'dot' + (on ? ' run' : '');
   if (keepProgress) return; // 进度事件自己在画，别覆盖成滚动动画
   const fill = $('#progressFill');
   fill.style.width = '';
   fill.className = on ? 'indet' : 'idle';
+}
+
+async function stop() {
+  const button = $('#btnStop');
+  if (button.disabled) return;
+  state.stopping = true;
+  $('#actionProgress').classList.remove('hidden');
+  $('#actionProgress').setAttribute('aria-hidden', 'false');
+  button.disabled = true;
+  button.textContent = '正在停止…';
+  $('#statusText').textContent = '正在停止测速…';
+  try {
+    await api('/api/cancel', { method: 'POST' });
+  } catch (e) {
+    button.disabled = false;
+    button.innerHTML = '<svg viewBox="0 0 24 24" class="ico"><rect x="6" y="6" width="12" height="12"/></svg>停止';
+    toast('停止请求失败: ' + e.message, 'err');
+  }
 }
 
 // 有确切进度就画百分比，没有才退回滚动动画
@@ -208,7 +287,8 @@ function connectEvents() {
     try { e = JSON.parse(ev.data); } catch (_) { return; }
     if (e.message) {
       // 带上「已测 N/M」，让人一眼看出还在动
-      let status = e.total > 0 ? `${e.message} ${e.current}/${e.total}` : e.message;
+      const current = Number.isFinite(Number(e.current)) ? Number(e.current) : 0;
+      let status = e.total > 0 ? `${e.message} ${current}/${e.total}` : e.message;
       if (e.match_total > 0) {
         const label = e.stage === 'ping' ? '延迟符合' : '速度符合';
         status += `(${label}:${e.matched || 0}/${e.match_total})`;
@@ -284,6 +364,7 @@ async function start() {
 async function loadConfig(uploadOnly) {
   try {
     const c = await api('/api/config');
+    applyTheme(c.theme);
     $('#cfgDomain').value = c.worker_domain || '';
     $('#cfgUUID').value = c.uuid || '';
     $('#cfgRepo').value = c.github_repo || '';
@@ -756,7 +837,7 @@ async function removeCron() {
   });
   $('#inIPText').addEventListener('input', syncPoolNote);
   $('#btnStart').onclick = start;
-  $('#btnStop').onclick = () => api('/api/cancel', { method: 'POST' }).catch(() => {});
+  $('#btnStop').onclick = stop;
   $('#filterText').addEventListener('input', renderTable);
   $('#btnResultFilter').onclick = () => {
     const panel = $('#resultFilters');
@@ -818,6 +899,8 @@ async function removeCron() {
   $('#btnUploadAPI').onclick = uploadAPI;
   $('#btnUploadGH').onclick = uploadGitHub;
   $('#btnDownload').onclick = () => download('result');
+  $('#btnDownloadFiltered').onclick = downloadFilteredCSV;
+  $('#btnTheme').onclick = toggleTheme;
 
   $('#inIPFile').addEventListener('change', e => {
     importIPFile(e.target.files && e.target.files[0]);

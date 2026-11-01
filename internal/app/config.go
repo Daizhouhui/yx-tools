@@ -29,6 +29,7 @@ type Config struct {
 	DisableDL  bool    `json:"disable_dl"`
 	DLTimeout  int     `json:"dl_timeout"`
 	MaxRunTime int     `json:"max_runtime"`
+	Theme      string  `json:"theme"`
 }
 
 const configName = "yx-config.json"

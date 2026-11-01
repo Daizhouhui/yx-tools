@@ -267,7 +267,10 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 	if !o.DisableDL && !timedOut {
 		stage = "download"
 		downloadMatchTotal = o.Count
-		emit(Progress{Stage: "download", Message: "正在测试下载速度", Total: len(pingData), MatchTotal: downloadMatchTotal})
+		emit(Progress{
+			Stage: "download", Message: "正在测试下载速度",
+			Current: 0, Total: len(pingData), Matched: 0, MatchTotal: downloadMatchTotal,
+		})
 		// 逐条上报：下载测速本来就是一个个串行跑的，
 		// 没必要让用户盯着进度条等整批结束
 		if deadline, ok := ctx.Deadline(); ok {

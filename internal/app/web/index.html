@@ -15,6 +15,7 @@
   </div>
   <div class="topbar-right">
     <span class="stat" id="statResult">结果 0</span>
+    <button class="btn ghost" id="btnTheme" type="button" title="切换浅色主题" aria-label="切换浅色主题">浅色</button>
     <button class="btn ghost" id="btnCron" title="定时任务">
       <svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     </button>
@@ -132,6 +133,7 @@
     </div>
 
     <div class="actions">
+      <div class="action-progress hidden" id="actionProgress" role="progressbar" aria-label="测速正在进行" aria-hidden="true"><i></i></div>
       <button class="btn primary" id="btnStart">
         <svg viewBox="0 0 24 24" class="ico"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         开始测速
@@ -176,7 +178,7 @@
     </div>
 
     <div class="result-filters hidden" id="resultFilters">
-      <label class="filter-field">
+      <label class="filter-field filter-range-field">
         <span>延迟范围 (ms)</span>
         <span class="filter-range">
           <input type="number" id="filterDelayMin" min="0" step="any" placeholder="最小">
@@ -184,7 +186,7 @@
           <input type="number" id="filterDelayMax" min="0" step="any" placeholder="最大">
         </span>
       </label>
-      <label class="filter-field">
+      <label class="filter-field filter-range-field">
         <span>速度范围 (MB/s)</span>
         <span class="filter-range">
           <input type="number" id="filterSpeedMin" min="0" step="any" placeholder="最小">
@@ -192,15 +194,16 @@
           <input type="number" id="filterSpeedMax" min="0" step="any" placeholder="最大">
         </span>
       </label>
-      <label class="filter-field">
+      <label class="filter-field filter-loss-field">
         <span>丢包率上限 (%)</span>
         <input type="number" id="filterLossMax" min="0" max="100" step="any" placeholder="不限制">
       </label>
-      <label class="filter-field">
+      <label class="filter-field filter-colo-field">
         <span>地区 / 机房码</span>
         <input type="text" id="filterColo" placeholder="如 香港、HKG" autocomplete="off">
       </label>
       <button class="btn ghost filter-reset" id="btnFilterReset" type="button">清除筛选</button>
+      <button class="btn ghost" id="btnDownloadFiltered" type="button" title="下载当前筛选结果 CSV">下载</button>
     </div>
 
     <div class="table-wrap">

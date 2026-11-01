@@ -90,6 +90,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"port":             c.Port,
 			"dl_timeout":       c.DLTimeout,
 			"max_runtime":      c.MaxRunTime,
+			"theme":            c.Theme,
 		})
 	case http.MethodPost:
 		cur := LoadConfig()
@@ -107,6 +108,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			Threads      *int     `json:"threads"`
 			TestURL      *string  `json:"test_url"`
 			Port         *int     `json:"port"`
+			Theme        *string  `json:"theme"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeErr(w, http.StatusBadRequest, "请求格式错误")
@@ -150,6 +152,13 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		if in.Port != nil {
 			cur.Port = *in.Port
+		}
+		if in.Theme != nil {
+			if *in.Theme != "dark" && *in.Theme != "light" {
+				writeErr(w, http.StatusBadRequest, "主题只能是 dark 或 light")
+				return
+			}
+			cur.Theme = *in.Theme
 		}
 		if err := SaveConfig(cur); err != nil {
 			writeErr(w, http.StatusInternalServerError, err.Error())
