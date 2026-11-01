@@ -478,10 +478,56 @@ function importIPFile(file) {
   }
   const reader = new FileReader();
   reader.onload = () => {
-    const lines = String(reader.result)
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l && !l.startsWith('#'));
+    const text = String(reader.result);
+    const lines = [];
+    
+    // 检测是否为 CSV 格式（第一行包含逗号）
+    const firstLine = text.split(/\r?\n/)[0];
+    const isCSV = firstLine && firstLine.includes(',');
+    
+    if (isCSV) {
+      // CSV 格式解析
+      const allLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+      if (allLines.length < 2) {
+        toast('CSV 文件没有数据行', 'err');
+        return;
+      }
+      
+      // 解析表头
+      const headers = allLines[0].split(',').map(h => h.trim().toLowerCase());
+      const ipIndex = headers.findIndex(h => h === 'ip' || h === 'ip地址' || h === 'ip 地址');
+      const portIndex = headers.findIndex(h => h === 'port' || h === '端口');
+      
+      if (ipIndex === -1) {
+        toast('CSV 文件中找不到 IP 列', 'err');
+        return;
+      }
+      
+      // 解析数据行
+      for (let i = 1; i < allLines.length; i++) {
+        const cols = allLines[i].split(',').map(c => c.trim());
+        if (cols.length <= ipIndex) continue;
+        
+        const ip = cols[ipIndex];
+        if (!ip) continue;
+        
+        // 如果 IP 已经包含端口（如 43.159.4.43:443），直接使用
+        if (ip.includes(':') && !ip.includes('/')) {
+          lines.push(ip);
+        } else {
+          // 否则从端口列获取
+          const port = portIndex !== -1 && cols[portIndex] ? cols[portIndex] : '443';
+          lines.push(`${ip}:${port}`);
+        }
+      }
+    } else {
+      // 纯文本格式（每行一个 IP 或 IP:端口）
+      const rawLines = text.split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+      lines.push(...rawLines);
+    }
+    
     if (!lines.length) {
       toast('文件里没有可用的 IP', 'err');
       return;

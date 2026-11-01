@@ -153,12 +153,51 @@ func (r *IPRanges) chooseIPv6() {
 func loadIPRanges() []*net.IPAddr {
 	ranges := newIPRanges()
 	if IPText != "" { // 从参数中获取 IP 段数据
-		IPs := strings.Split(IPText, ",") // 以逗号分隔为数组并循环遍历
+		// 支持逗号和换行符分隔,优先按换行符分割,再按逗号分割
+		var IPs []string
+		if strings.Contains(IPText, "\n") || strings.Contains(IPText, "\r") {
+			// 有换行符,按行分割
+			lines := strings.Split(IPText, "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				// 每行可能还有逗号分隔的多个IP
+				parts := strings.Split(line, ",")
+				for _, part := range parts {
+					part = strings.TrimSpace(part)
+					if part != "" {
+						IPs = append(IPs, part)
+					}
+				}
+			}
+		} else {
+			// 没有换行符,按逗号分割
+			IPs = strings.Split(IPText, ",")
+		}
+		
 		for _, IP := range IPs {
 			IP = strings.TrimSpace(IP) // 去除首尾的空白字符（空格、制表符、换行符等）
 			if IP == "" {              // 跳过空的（即开头、结尾或连续多个 ,, 的情况）
 				continue
 			}
+			
+			// 检查是否是 IP:端口 格式（反代模式）
+			if strings.Contains(IP, ":") && !strings.Contains(IP, "/") {
+				parts := strings.Split(IP, ":")
+				if len(parts) == 2 {
+					ip := strings.TrimSpace(parts[0])
+					portStr := strings.TrimSpace(parts[1])
+					if port, err := strconv.Atoi(portStr); err == nil && port > 0 && port < 65536 {
+						// 存储端口映射
+						PortMapping[ip] = port
+						// 将IP作为单个IP处理
+						IP = ip
+					}
+				}
+			}
+			
 			ranges.parseCIDR(IP) // 解析 IP 段，获得 IP、IP 范围、子网掩码
 			if isIPv4(IP) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
 				ranges.chooseIPv4()

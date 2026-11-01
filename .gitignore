@@ -25,6 +25,6 @@ local.properties
 #测试
 *.csv
 .vscode
-
+.lingma
 
 run.ps1
