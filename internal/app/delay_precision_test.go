@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/byJoey/yx-tools/internal/speedtest/utils"
+	"github.com/DaiZhouHui/yx-tools/internal/speedtest/utils"
 )
 
 func mustIP(s string) *net.IPAddr { return &net.IPAddr{IP: net.ParseIP(s)} }

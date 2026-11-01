@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/byJoey/yx-tools/internal/speedtest/utils"
+	"github.com/DaiZhouHui/yx-tools/internal/speedtest/utils"
 )
 
 const (

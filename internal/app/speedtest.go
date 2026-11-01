@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/byJoey/yx-tools/internal/speedtest/task"
-	"github.com/byJoey/yx-tools/internal/speedtest/utils"
+	"github.com/DaiZhouHui/yx-tools/internal/speedtest/task"
+	"github.com/DaiZhouHui/yx-tools/internal/speedtest/utils"
 )
 
 // 默认参数

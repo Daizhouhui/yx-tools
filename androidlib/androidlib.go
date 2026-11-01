@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/byJoey/yx-tools/internal/app"
+	"github.com/DaiZhouHui/yx-tools/internal/app"
 )
 
 var (

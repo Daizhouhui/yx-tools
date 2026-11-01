@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/byJoey/yx-tools/internal/speedtest/utils"
+	"github.com/DaiZhouHui/yx-tools/internal/speedtest/utils"
 )
 
 // 起一个本地测速靶子。全程不打公网。

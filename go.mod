@@ -1,4 +1,4 @@
-module github.com/byJoey/yx-tools
+module github.com/DaiZhouHui/yx-tools
 
 go 1.26.0
 
