@@ -13,7 +13,7 @@
 - **🌍 全球覆盖**：支持全球 97 个 Cloudflare 数据中心，可按机场码筛选特定地区
 - **🔌 反代友好**：原生支持 `IP:端口` 格式，完美适配反代场景
 - **📊 双模界面**：同时提供现代化 Web 界面和命令行模式，满足不同使用习惯
-- **☁️ 云端同步**：一键上报结果到 [cfnew](https://github.com/byJoey/cfnew) 面板或 GitHub 仓库
+- **☁️ 云端同步**：一键上报结果到 [cfnew](https://github.com/Daizhouui/cfnew) 面板或 GitHub 仓库
 - **⏰ 定时任务**：内置 Cron 支持，自动定期执行测速任务
 - **📱 移动支持**：提供 Android APK，随时随地测速
 - **🐳 容器化**：官方 Docker 镜像，开箱即用
