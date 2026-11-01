@@ -47,7 +47,7 @@
     <div class="grid2">
       <div class="field">
         <label>测速数量</label>
-        <input type="number" id="inCount" value="10" min="1" max="100">
+        <input type="number" id="inCount" value="50" min="1" max="100">
       </div>
       <div class="field">
         <label>端口</label>
@@ -55,11 +55,11 @@
       </div>
       <div class="field">
         <label>速度下限 MB/s</label>
-        <input type="number" id="inSpeed" value="1" min="0" step="0.5">
+        <input type="number" id="inSpeed" value="5" min="0" step="0.5">
       </div>
       <div class="field">
         <label>延迟上限 ms</label>
-        <input type="number" id="inDelay" value="1000" min="1">
+        <input type="number" id="inDelay" value="300" min="1">
       </div>
     </div>
 
@@ -99,8 +99,7 @@
       <input type="range" id="inThread" min="10" max="1000" step="10" value="200">
     </div>
 
-    <details class="more">
-      <summary>更多选项</summary>
+    <div class="more-open">
       <div class="field">
         <label>测速地址</label>
         <input type="text" id="inURL" placeholder="留空用默认（走 Cloudflare 的大文件）">
@@ -121,7 +120,7 @@
       <div class="grid2">
         <div class="field">
           <label>单个 IP 测速上限</label>
-          <input type="number" id="inDLTimeout" value="10" min="1" max="120">
+          <input type="number" id="inDLTimeout" value="6" min="1" max="120">
           <em class="note">秒。慢的 IP 到点就跳过，不会一直耗着</em>
         </div>
         <div class="field">
@@ -130,8 +129,7 @@
           <em class="note">秒。0 是不限；到点就拿已测出的结果收工</em>
         </div>
       </div>
-
-    </details>
+    </div>
 
     <div class="actions">
       <button class="btn primary" id="btnStart">

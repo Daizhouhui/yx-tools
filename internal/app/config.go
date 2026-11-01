@@ -42,14 +42,14 @@ var (
 func DefaultConfig() *Config {
 	return &Config{
 		GitHubPath: "cloudflare_ips.txt",
-		Count:      10,
-		SpeedLimit: 1,
-		DelayLimit: 1000,
+		Count:      50,
+		SpeedLimit: 5,
+		DelayLimit: 300,
 		Threads:    200,
 		TestURL:    DefaultTestURL,
 		Port:       443,
 		SampleSize: 1000,
-		DLTimeout:  10,
+		DLTimeout:  6,
 	}
 }
 

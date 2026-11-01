@@ -21,3 +21,10 @@ android/app/libs/
 android/.gradle/
 local.properties
 *.apk
+
+#测试
+*.csv
+.vscode
+
+
+run.ps1

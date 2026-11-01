@@ -1,7 +1,7 @@
 :root{
   --bg:#0f1115; --panel:#161920; --panel2:#1b1f28; --line:#252a35;
   --ink:#e6e9ef; --ink2:#9aa3b2; --faint:#6b7383;
-  --accent:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --accent:#2563eb; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -71,20 +71,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .more[open] summary{margin-bottom:8px}
 .more .field{margin-bottom:9px}
 
+/* 展开的更多选项区域 */
+.more-open{display:flex;flex-direction:column;gap:9px}
+.more-open .field{margin-bottom:0}
+
 /* 按钮 */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
   border:1px solid var(--line);background:var(--panel2);color:var(--ink);
   border-radius:5px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit;
   transition:border-color .15s,background .15s;white-space:nowrap}
 .btn:hover{border-color:var(--accent)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%;padding:9px}
-.btn.primary:hover{filter:brightness(1.1)}
+.btn.primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff;width:100%;padding:9px}
+.btn.primary:hover{filter:brightness(1.15)}
 .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff;width:100%;padding:9px}
 .btn.ghost{background:transparent}
 .btn.ghost:hover{background:var(--panel2)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.icon{padding:6px;width:30px;height:28px}
-.actions{margin-top:auto;padding-top:8px}
+.actions{margin-top:auto;padding-top:8px;position:sticky;bottom:0;background:var(--panel);z-index:10}
 .hidden{display:none!important}
 
 /* 进度与状态 */
