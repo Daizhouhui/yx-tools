@@ -153,28 +153,22 @@ func (r *IPRanges) chooseIPv6() {
 func loadIPRanges() []*net.IPAddr {
 	ranges := newIPRanges()
 	if IPText != "" { // 从参数中获取 IP 段数据
-		// 支持逗号和换行符分隔,优先按换行符分割,再按逗号分割
+		// 先按换行符分割，再按逗号分割（兼容两种格式）
+		lines := strings.Split(IPText, "\n")
 		var IPs []string
-		if strings.Contains(IPText, "\n") || strings.Contains(IPText, "\r") {
-			// 有换行符,按行分割
-			lines := strings.Split(IPText, "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				// 每行可能还有逗号分隔的多个IP
-				parts := strings.Split(line, ",")
-				for _, part := range parts {
-					part = strings.TrimSpace(part)
-					if part != "" {
-						IPs = append(IPs, part)
-					}
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// 每行可能包含多个以逗号分隔的 IP
+			parts := strings.Split(line, ",")
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part != "" {
+					IPs = append(IPs, part)
 				}
 			}
-		} else {
-			// 没有换行符,按逗号分割
-			IPs = strings.Split(IPText, ",")
 		}
 		
 		for _, IP := range IPs {
