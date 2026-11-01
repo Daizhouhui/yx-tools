@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/cheggaaa/pb/v3"
 )
@@ -14,10 +15,14 @@ var Quiet bool
 // 内核所有进度都经由 Bar.Grow，挂在这里就能覆盖延迟与下载两个阶段。
 var OnProgress func(current, total int)
 
+// OnProgressDetail 在需要附带额外计数时报告进度。
+var OnProgressDetail func(current, total, matched int)
+
 type Bar struct {
 	pb    *pb.ProgressBar
 	total int
 	cur   int
+	mu    sync.Mutex
 }
 
 func NewBar(count int, MyStrStart, MyStrEnd string) *Bar {
@@ -31,10 +36,24 @@ func NewBar(count int, MyStrStart, MyStrEnd string) *Bar {
 }
 
 func (b *Bar) Grow(num int, MyStrVal string) {
+	b.grow(num, MyStrVal, -1)
+}
+
+func (b *Bar) GrowWithMatch(num int, MyStrVal string, matched int) {
+	b.grow(num, MyStrVal, matched)
+}
+
+func (b *Bar) grow(num int, MyStrVal string, matched int) {
 	b.pb.Set("MyStr", MyStrVal).Add(num)
+	b.mu.Lock()
 	b.cur += num
+	current := b.cur
+	b.mu.Unlock()
 	if OnProgress != nil {
-		OnProgress(b.cur, b.total)
+		OnProgress(current, b.total)
+	}
+	if matched >= 0 && OnProgressDetail != nil {
+		OnProgressDetail(current, b.total, matched)
 	}
 }
 

@@ -8,15 +8,17 @@ import (
 
 // Event 是推送给界面的一条运行事件
 type Event struct {
-	Type     string   `json:"type"` // progress / log / done / error
-	Stage    string   `json:"stage,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Current  int      `json:"current,omitempty"`
-	Total    int      `json:"total,omitempty"`
-	Results  []Result `json:"results,omitempty"`
-	Result   *Result  `json:"result,omitempty"` // 下载测速逐条出结果时带上
-	Finished bool     `json:"finished"`
-	At       int64    `json:"at"`
+	Type       string   `json:"type"` // progress / log / done / error
+	Stage      string   `json:"stage,omitempty"`
+	Message    string   `json:"message,omitempty"`
+	Current    int      `json:"current,omitempty"`
+	Total      int      `json:"total,omitempty"`
+	Matched    int      `json:"matched"`
+	MatchTotal int      `json:"match_total,omitempty"`
+	Results    []Result `json:"results,omitempty"`
+	Result     *Result  `json:"result,omitempty"` // 下载测速逐条出结果时带上
+	Finished   bool     `json:"finished"`
+	At         int64    `json:"at"`
 }
 
 // Runner 串行调度测速任务，并把过程广播给所有订阅者
@@ -136,13 +138,21 @@ func (r *Runner) Start(o Options) bool {
 			r.mu.Unlock()
 			cancel()
 		}()
+		var finalProgress Progress
 		rs, err := Run(ctx, o, func(p Progress) {
+			if p.Stage == "done" {
+				finalProgress = p
+			}
 			if p.Result != nil {
 				// 单条结果单独发一种事件，前端可以立刻插进表格
 				r.broadcast(Event{Type: "result", Stage: p.Stage, Result: p.Result})
 				return
 			}
-			r.broadcast(Event{Type: "progress", Stage: p.Stage, Message: p.Message, Current: p.Current, Total: p.Total})
+			r.broadcast(Event{
+				Type: "progress", Stage: p.Stage, Message: p.Message,
+				Current: p.Current, Total: p.Total,
+				Matched: p.Matched, MatchTotal: p.MatchTotal,
+			})
 		})
 		if err != nil {
 			if ctx.Err() != nil {
@@ -158,7 +168,11 @@ func (r *Runner) Start(o Options) bool {
 		if err := WriteCSV(ResultFile, rs); err != nil {
 			r.broadcast(Event{Type: "log", Message: "结果写入失败: " + err.Error()})
 		}
-		r.broadcast(Event{Type: "done", Message: "测速完成", Results: rs, Total: len(rs), Current: len(rs), Finished: true})
+		r.broadcast(Event{
+			Type: "done", Stage: "done", Message: finalProgress.Message,
+			Results: rs, Total: finalProgress.Total, Current: finalProgress.Current,
+			Matched: finalProgress.Matched, MatchTotal: finalProgress.MatchTotal, Finished: true,
+		})
 	}()
 	return true
 }

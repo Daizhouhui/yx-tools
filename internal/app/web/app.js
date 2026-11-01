@@ -93,9 +93,37 @@ function fmtDelay(v) {
   return `<span class="${cls}">${txt}</span>`;
 }
 
+function filterNumber(id) {
+  const value = $(`#${id}`).value.trim();
+  if (!value) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function updateFilterButtonState() {
+  const active = ['filterDelayMin', 'filterDelayMax', 'filterSpeedMin', 'filterSpeedMax', 'filterLossMax', 'filterColo']
+    .some(id => $(`#${id}`).value.trim() !== '');
+  $('#btnResultFilter').classList.toggle('active', active);
+}
+
 function visibleRows() {
   const q = $('#filterText').value.trim().toLowerCase();
+  const colo = $('#filterColo').value.trim().toLowerCase();
+  const delayMin = filterNumber('filterDelayMin');
+  const delayMax = filterNumber('filterDelayMax');
+  const speedMin = filterNumber('filterSpeedMin');
+  const speedMax = filterNumber('filterSpeedMax');
+  const lossMax = filterNumber('filterLossMax');
   let rows = state.results;
+  rows = rows.filter(r =>
+    (delayMin === null || r.delay >= delayMin) &&
+    (delayMax === null || r.delay <= delayMax) &&
+    (speedMin === null || r.speed >= speedMin) &&
+    (speedMax === null || r.speed <= speedMax) &&
+    (lossMax === null || r.loss_rate * 100 <= lossMax) &&
+    (!colo || (r.colo || '').toLowerCase().includes(colo) ||
+      (r.colo_name || '').toLowerCase().includes(colo))
+  );
   if (q) {
     rows = rows.filter(r =>
       r.ip.toLowerCase().includes(q) ||
@@ -119,6 +147,9 @@ function renderTable() {
   const rows = visibleRows();
   const tb = $('#tbody');
   tb.innerHTML = '';
+  $('#emptyBox').textContent = state.results.length > 0
+    ? '没有符合筛选条件的结果'
+    : '还没有测速结果';
   $('#emptyBox').classList.toggle('hidden', rows.length > 0);
   rows.forEach((r, i) => {
     const tr = document.createElement('tr');
@@ -139,7 +170,9 @@ function renderTable() {
     };
     tb.appendChild(tr);
   });
-  $('#statResult').textContent = '结果 ' + state.results.length;
+  $('#statResult').textContent = rows.length === state.results.length
+    ? '结果 ' + state.results.length
+    : `结果 ${rows.length}/${state.results.length}`;
 }
 
 // ── 运行状态 ──────────────────────────────────────
@@ -175,9 +208,12 @@ function connectEvents() {
     try { e = JSON.parse(ev.data); } catch (_) { return; }
     if (e.message) {
       // 带上「已测 N/M」，让人一眼看出还在动
-      $('#statusText').textContent = e.total > 0
-        ? `${e.message}  ${e.current}/${e.total}`
-        : e.message;
+      let status = e.total > 0 ? `${e.message} ${e.current}/${e.total}` : e.message;
+      if (e.match_total > 0) {
+        const label = e.stage === 'ping' ? '延迟符合' : '速度符合';
+        status += `(${label}:${e.matched || 0}/${e.match_total})`;
+      }
+      $('#statusText').textContent = status;
     }
     if (e.type === 'progress') setProgress(e.current, e.total);
     if (e.type === 'result' && e.result) {
@@ -722,6 +758,25 @@ async function removeCron() {
   $('#btnStart').onclick = start;
   $('#btnStop').onclick = () => api('/api/cancel', { method: 'POST' }).catch(() => {});
   $('#filterText').addEventListener('input', renderTable);
+  $('#btnResultFilter').onclick = () => {
+    const panel = $('#resultFilters');
+    const open = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !open);
+    $('#btnResultFilter').setAttribute('aria-expanded', String(open));
+  };
+  ['filterDelayMin', 'filterDelayMax', 'filterSpeedMin', 'filterSpeedMax', 'filterLossMax', 'filterColo']
+    .forEach(id => {
+      $(`#${id}`).addEventListener('input', () => {
+        updateFilterButtonState();
+        renderTable();
+      });
+    });
+  $('#btnFilterReset').onclick = () => {
+    ['filterDelayMin', 'filterDelayMax', 'filterSpeedMin', 'filterSpeedMax', 'filterLossMax', 'filterColo']
+      .forEach(id => { $(`#${id}`).value = ''; });
+    updateFilterButtonState();
+    renderTable();
+  };
 
   document.querySelectorAll('thead th[data-sort]').forEach(th => {
     th.onclick = () => {

@@ -26,12 +26,14 @@ var (
 )
 
 type Ping struct {
-	wg      *sync.WaitGroup
-	m       *sync.Mutex
-	ips     []*net.IPAddr
-	csv     utils.PingDelaySet
-	control chan bool
-	bar     *utils.Bar
+	wg         *sync.WaitGroup
+	m          *sync.Mutex
+	ips        []*net.IPAddr
+	csv        utils.PingDelaySet
+	control    chan bool
+	bar        *utils.Bar
+	matched    int
+	progressMu sync.Mutex
 }
 
 func checkPingDefault() {
@@ -137,23 +139,34 @@ func (p *Ping) checkConnection(ip *net.IPAddr) (recv int, totalDelay time.Durati
 	return
 }
 
-func (p *Ping) appendIPData(data *utils.PingData) {
+func (p *Ping) appendIPData(data *utils.PingData) int {
 	p.m.Lock()
 	defer p.m.Unlock()
-	p.csv = append(p.csv, utils.CloudflareIPData{
+	result := utils.CloudflareIPData{
 		PingData: data,
-	})
+	}
+	p.csv = append(p.csv, result)
+	if utils.PassesFilters(result) {
+		p.matched++
+	}
+	return p.matched
+}
+
+func (p *Ping) matchedCount() int {
+	p.m.Lock()
+	defer p.m.Unlock()
+	return p.matched
 }
 
 // handle tcping
 func (p *Ping) tcpingHandler(ip *net.IPAddr) {
 	recv, totalDlay, colo := p.checkConnection(ip)
-	nowAble := len(p.csv)
-	if recv != 0 {
-		nowAble++
-	}
-	p.bar.Grow(1, strconv.Itoa(nowAble))
+	p.progressMu.Lock()
+	defer p.progressMu.Unlock()
+
+	matched := p.matchedCount()
 	if recv == 0 {
+		p.bar.GrowWithMatch(1, strconv.Itoa(matched), matched)
 		return
 	}
 	// 获取使用的端口
@@ -170,5 +183,6 @@ func (p *Ping) tcpingHandler(ip *net.IPAddr) {
 		Colo:     colo,
 		Port:     port,
 	}
-	p.appendIPData(data)
+	matched = p.appendIPData(data)
+	p.bar.GrowWithMatch(1, strconv.Itoa(matched), matched)
 }

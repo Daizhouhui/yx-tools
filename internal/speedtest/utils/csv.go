@@ -145,6 +145,16 @@ func (s PingDelaySet) FilterLossRate() (data PingDelaySet) {
 	return
 }
 
+// PassesFilters reports whether a ping result passes the active delay and loss filters.
+func PassesFilters(v CloudflareIPData) bool {
+	if !(InputMaxDelay > maxDelay || InputMinDelay < minDelay) &&
+		!(InputMaxDelay == maxDelay && InputMinDelay == minDelay) &&
+		(v.Delay < InputMinDelay || v.Delay > InputMaxDelay) {
+		return false
+	}
+	return v.getLossRate() <= InputMaxLossRate
+}
+
 func (s PingDelaySet) Len() int {
 	return len(s)
 }

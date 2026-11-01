@@ -75,10 +75,12 @@ type Result struct {
 
 // Progress 描述测速进度，供界面实时展示
 type Progress struct {
-	Stage   string `json:"stage"`   // prepare / ping / download / done
-	Message string `json:"message"` // 面向用户的一句话
-	Current int    `json:"current"`
-	Total   int    `json:"total"`
+	Stage      string `json:"stage"`   // prepare / ping / download / done
+	Message    string `json:"message"` // 面向用户的一句话
+	Current    int    `json:"current"`
+	Total      int    `json:"total"`
+	Matched    int    `json:"matched"`
+	MatchTotal int    `json:"match_total,omitempty"`
 	// Result 只在下载测速逐条出结果时带上，让界面不必等整批跑完
 	Result *Result `json:"result,omitempty"`
 }
@@ -216,22 +218,40 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 		pingMsg += "并匹配地区 " + colo
 	}
 	var lastTick time.Time
-	utils.OnProgress = func(cur, total int) {
-		msg := pingMsg
-		if stage == "download" {
-			msg = "正在测试下载速度"
-		}
-		// 收尾那一下一定要发，否则进度条会停在 99%
-		if cur < total && time.Since(lastTick) < 200*time.Millisecond {
+	var pingProgressMu sync.Mutex
+	pingTotal := 0
+	utils.OnProgress = nil
+	utils.OnProgressDetail = func(cur, total, matched int) {
+		if stage != "ping" {
 			return
 		}
-		lastTick = time.Now()
-		emit(Progress{Stage: stage, Message: msg, Current: cur, Total: total})
+		pingProgressMu.Lock()
+		pingTotal = total
+		// 收尾那一下一定要发，否则进度条会停在 99%
+		shouldEmit := cur >= total || time.Since(lastTick) >= 200*time.Millisecond
+		if shouldEmit {
+			lastTick = time.Now()
+		}
+		pingProgressMu.Unlock()
+		if !shouldEmit {
+			return
+		}
+		emit(Progress{Stage: "ping", Message: pingMsg, Current: cur, Total: total, Matched: matched, MatchTotal: total})
 	}
-	defer func() { utils.OnProgress = nil }()
+	defer func() {
+		utils.OnProgress = nil
+		utils.OnProgressDetail = nil
+	}()
 
 	emit(Progress{Stage: "ping", Message: pingMsg})
 	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+	pingProgressMu.Lock()
+	pingTotalSnapshot := pingTotal
+	pingProgressMu.Unlock()
+	emit(Progress{
+		Stage: "ping", Message: pingMsg, Current: pingTotalSnapshot, Total: pingTotalSnapshot,
+		Matched: len(pingData), MatchTotal: pingTotalSnapshot,
+	})
 	// 延迟阶段就超时的话，拿已经测通的 IP 继续往下走，别整批作废
 	if err := ctx.Err(); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return nil, err
@@ -240,14 +260,14 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 		return nil, errors.New("没有符合条件的 IP，可放宽延迟上限或更换地区")
 	}
 
-	var speedData utils.DownloadSpeedSet
 	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
-	if o.DisableDL || timedOut {
-		// 已经到时限就不再开下载阶段，直接拿延迟结果收工
-		speedData = utils.DownloadSpeedSet(pingData)
-	} else {
+	downloadChecked := 0
+	downloadMatched := 0
+	downloadMatchTotal := 0
+	if !o.DisableDL && !timedOut {
 		stage = "download"
-		emit(Progress{Stage: "download", Message: "正在测试下载速度", Total: o.Count})
+		downloadMatchTotal = o.Count
+		emit(Progress{Stage: "download", Message: "正在测试下载速度", Total: len(pingData), MatchTotal: downloadMatchTotal})
 		// 逐条上报：下载测速本来就是一个个串行跑的，
 		// 没必要让用户盯着进度条等整批结束
 		if deadline, ok := ctx.Deadline(); ok {
@@ -258,9 +278,18 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 		utils.SetQuiet(true)
 		task.OnSpeedResult = func(d utils.CloudflareIPData) {
 			r := toResult(d)
+			downloadChecked++
+			if d.DownloadSpeed >= o.SpeedLimit*1024*1024 {
+				downloadMatched++
+			}
 			emit(Progress{Stage: "download", Message: "正在测试下载速度", Result: &r})
+			emit(Progress{
+				Stage: "download", Message: "正在测试下载速度",
+				Current: downloadChecked, Total: len(pingData),
+				Matched: downloadMatched, MatchTotal: downloadMatchTotal,
+			})
 		}
-		speedData = task.TestDownloadSpeed(pingData)
+		task.TestDownloadSpeed(pingData)
 		utils.SetQuiet(!o.Verbose)
 		task.OnSpeedResult = nil
 		task.Deadline = time.Time{}
@@ -271,13 +300,25 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 		return nil, err
 	}
 
-	results := toResults(speedData)
-	// 未设速度下限时内核会返回全部 IP，这里统一收敛到用户要的数量
-	if o.Count > 0 && len(results) > o.Count {
-		results = results[:o.Count]
+	results := allDelayQualifiedResults(pingData)
+	// 最终结果保留全部延迟符合的候选；下载速度只对实际测速过的候选有值。
+	if downloadMatchTotal > 0 {
+		emit(Progress{
+			Stage: "done", Message: "测速完成",
+			Current: downloadChecked, Total: len(pingData),
+			Matched: downloadMatched, MatchTotal: downloadMatchTotal,
+		})
+	} else {
+		emit(Progress{
+			Stage: "done", Message: "测速完成",
+			Current: len(pingData), Total: len(pingData),
+		})
 	}
-	emit(Progress{Stage: "done", Message: fmt.Sprintf("完成，共 %d 个结果", len(results)), Current: len(results), Total: len(results)})
 	return results, nil
+}
+
+func allDelayQualifiedResults(pingData utils.PingDelaySet) []Result {
+	return toResults(utils.DownloadSpeedSet(pingData))
 }
 
 func toResults(set utils.DownloadSpeedSet) []Result {
